@@ -1,0 +1,968 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../context/AuthContext";
+
+import {
+  getApplications,
+  getJobs,
+  getNotifications,
+  getResumes,
+  getSavedJobs,
+  getStudentProfiles,
+  uploadResume,
+  type Application,
+  type Job,
+  type Notification,
+  type Resume,
+  type SavedJob,
+  type StudentProfile,
+} from "../../services/studentService";
+
+function BriefcaseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12h18"
+      />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 3.75h8.25L18 7.5v12.75H6V3.75Z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M14 3.75V8h4M9 12h6M9 15.5h6"
+      />
+    </svg>
+  );
+}
+
+function BookmarkIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"
+      />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 20a7 7 0 0 1 14 0"
+      />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"
+      />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-5 w-5"
+    >
+      <circle cx="11" cy="11" r="6.5" />
+      <path
+        strokeLinecap="round"
+        d="m16 16 4.5 4.5"
+      />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-4 w-4"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 12h14M13 6l6 6-6 6"
+      />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="h-6 w-6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 16V4"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m7 9 5-5 5 5"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 20h14"
+      />
+    </svg>
+  );
+}
+
+export default function StudentDashboard() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [profile, setProfile] =
+    useState<StudentProfile | null>(null);
+
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [resumeFile, setResumeFile] =
+    useState<File | null>(null);
+
+  const [uploadingResume, setUploadingResume] =
+    useState(false);
+
+  const [resumeMessage, setResumeMessage] =
+    useState<string | null>(null);
+
+  const [resumeError, setResumeError] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      if (!user) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [
+          jobsData,
+          applicationsData,
+          savedJobsData,
+          notificationsData,
+          profilesData,
+          resumesData,
+        ] = await Promise.all([
+          getJobs(),
+          getApplications(),
+          getSavedJobs(),
+          getNotifications(),
+          getStudentProfiles(),
+          getResumes(),
+        ]);
+
+        setJobs(jobsData);
+
+        setApplications(
+          applicationsData.filter(
+            (application) =>
+              application.studentId === user.userId
+          )
+        );
+
+        setSavedJobs(
+          savedJobsData.filter(
+            (savedJob) =>
+              savedJob.studentId === user.userId
+          )
+        );
+
+        setNotifications(
+          notificationsData.filter(
+            (notification) =>
+              notification.userId === user.userId
+          )
+        );
+
+        const currentProfile =
+          profilesData.find(
+            (studentProfile) =>
+              studentProfile.userId === user.userId
+          ) ?? null;
+
+        setProfile(currentProfile);
+
+        /*
+         * Get the current student's resumes.
+         *
+         * If there are multiple resumes, prefer the active one.
+         */
+        const studentResumes = resumesData.filter(
+          (studentResume) =>
+            studentResume.studentId === user.userId
+        );
+
+        const activeResume =
+          studentResumes.find(
+            (studentResume) =>
+              studentResume.isActive === true
+          ) ??
+          studentResumes[studentResumes.length - 1] ??
+          null;
+
+        setResume(activeResume);
+      } catch (error) {
+        console.error(
+          "Dashboard loading error:",
+          error
+        );
+
+        setError(
+          "Unable to load dashboard data. Please refresh the page."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [user]);
+
+  const unreadNotifications =
+    notifications.filter(
+      (notification) =>
+        notification.isRead === false
+    ).length;
+
+  function calculateProfileCompletion() {
+    if (!profile) {
+      return 0;
+    }
+
+    const fields = [
+      profile.phone,
+      profile.location,
+      profile.bio,
+    ];
+
+    const completedFields = fields.filter(
+      (field) =>
+        typeof field === "string" &&
+        field.trim().length > 0
+    ).length;
+
+    return Math.round(
+      (completedFields / fields.length) * 100
+    );
+  }
+
+  const profileCompletion =
+    calculateProfileCompletion();
+
+  function handleResumeFileChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    setResumeMessage(null);
+    setResumeError(null);
+
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setResumeFile(null);
+      return;
+    }
+
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      setResumeFile(null);
+      setResumeError(
+        "Only PDF resume files are allowed."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setResumeFile(file);
+  }
+
+  async function handleResumeUpload() {
+    if (!resumeFile) {
+      setResumeError(
+        "Please select a PDF resume first."
+      );
+      return;
+    }
+
+    try {
+      setUploadingResume(true);
+      setResumeMessage(null);
+      setResumeError(null);
+
+      const uploadedResume =
+        await uploadResume(resumeFile);
+
+      setResume(uploadedResume);
+      setResumeFile(null);
+
+      setResumeMessage(
+        "Resume uploaded successfully. This resume will be used for your job and internship applications."
+      );
+
+      const fileInput =
+        document.getElementById(
+          "resume-upload"
+        ) as HTMLInputElement | null;
+
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    } catch (error) {
+      console.error(
+        "Resume upload error:",
+        error
+      );
+
+      setResumeError(
+        "Resume upload failed. Please try again."
+      );
+    } finally {
+      setUploadingResume(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+
+      {/* Navbar */}
+      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20">
+              <BriefcaseIcon />
+            </div>
+
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">
+                JobConnect
+              </h1>
+
+              <p className="text-xs text-slate-500">
+                Student Portal
+              </p>
+            </div>
+
+          </div>
+
+          {/* Navigation */}
+          <nav className="hidden items-center gap-6 md:flex">
+
+            <button
+              className="text-sm font-medium text-indigo-600"
+            >
+              Dashboard
+            </button>
+
+            <button
+              onClick={() =>
+                navigate("/student/jobs")
+              }
+              className="text-sm font-medium text-slate-600 transition hover:text-indigo-600"
+            >
+              Find Jobs
+            </button>
+
+            <button
+              onClick={() =>
+                navigate("/student/applications")
+              }
+              className="text-sm font-medium text-slate-600 transition hover:text-indigo-600"
+            >
+              Applications
+            </button>
+
+            <button
+              onClick={() =>
+                navigate("/student/saved-jobs")
+              }
+              className="text-sm font-medium text-slate-600 transition hover:text-indigo-600"
+            >
+              Saved Jobs
+            </button>
+
+          </nav>
+
+          {/* User */}
+          <div className="flex items-center gap-3">
+
+            <button
+              className="relative hidden rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 sm:block"
+              aria-label="Notifications"
+            >
+              <BellIcon />
+
+              {unreadNotifications > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-600" />
+              )}
+            </button>
+
+            <div className="hidden h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-bold text-white sm:flex">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+
+            <button
+              onClick={logout}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              Logout
+            </button>
+
+          </div>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="mx-auto max-w-7xl px-6 py-10">
+
+        {/* Loading */}
+        {loading && (
+          <div className="mb-6 rounded-2xl border border-indigo-100 bg-white px-5 py-4 text-sm text-indigo-600 shadow-sm">
+            Loading your dashboard...
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div
+            className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+
+        {/* Welcome */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 p-8 text-white shadow-xl shadow-indigo-500/20">
+
+          <div className="relative z-10 max-w-2xl">
+
+            <p className="text-sm font-medium text-indigo-100">
+              Welcome back 👋
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold sm:text-4xl">
+              {user?.name}!
+            </h2>
+
+            <p className="mt-3 max-w-xl text-sm leading-6 text-indigo-100 sm:text-base">
+              Discover opportunities, apply for jobs and
+              internships, and take the next step in your
+              career.
+            </p>
+
+            <button
+              onClick={() =>
+                navigate("/student/jobs")
+              }
+              className="mt-6 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-indigo-700 shadow-lg transition hover:bg-indigo-50"
+            >
+              <SearchIcon />
+              Explore Jobs
+            </button>
+
+          </div>
+
+          {/* Decorative shapes */}
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+
+          <div className="absolute -bottom-24 right-24 h-64 w-64 rounded-full bg-purple-400/20" />
+
+        </section>
+
+        {/* Stats */}
+        <section className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Opportunities */}
+          <div className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                <BriefcaseIcon />
+              </div>
+
+              <span className="text-xs font-medium text-slate-400">
+                Opportunities
+              </span>
+
+            </div>
+
+            <p className="mt-5 text-3xl font-bold text-slate-900">
+              {loading ? "..." : jobs.length}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Available jobs
+            </p>
+
+          </div>
+
+          {/* Applications */}
+          <div className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                <FileIcon />
+              </div>
+
+              <span className="text-xs font-medium text-slate-400">
+                Activity
+              </span>
+
+            </div>
+
+            <p className="mt-5 text-3xl font-bold text-slate-900">
+              {loading ? "..." : applications.length}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Applications
+            </p>
+
+          </div>
+
+          {/* Saved Jobs */}
+          <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                <BookmarkIcon />
+              </div>
+
+              <span className="text-xs font-medium text-slate-400">
+                Shortlist
+              </span>
+
+            </div>
+
+            <p className="mt-5 text-3xl font-bold text-slate-900">
+              {loading ? "..." : savedJobs.length}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Saved jobs
+            </p>
+
+          </div>
+
+          {/* Profile */}
+          <div className="rounded-2xl border border-fuchsia-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-100 text-fuchsia-600">
+                <UserIcon />
+              </div>
+
+              <span className="text-xs font-medium text-slate-400">
+                Profile
+              </span>
+
+            </div>
+
+            <p className="mt-5 text-3xl font-bold text-slate-900">
+              {loading
+                ? "..."
+                : `${profileCompletion}%`}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Profile completed
+            </p>
+
+          </div>
+
+        </section>
+
+        {/* Resume Upload */}
+        <section className="mt-10 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
+
+          <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-6 py-5">
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+              <div className="flex items-start gap-4">
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                  <FileIcon />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Your Resume
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Upload your resume once and use it for all your job and internship applications.
+                  </p>
+                </div>
+
+              </div>
+
+              {resume && (
+                <span className="inline-flex w-fit items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  Resume Ready
+                </span>
+              )}
+
+            </div>
+
+          </div>
+
+          <div className="p-6">
+
+            {resume ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
+
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+                  <div className="flex items-center gap-4">
+
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                      <FileIcon />
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {resume.fileName}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        Uploaded resume • Ready for applications
+                      </p>
+                    </div>
+
+                  </div>
+
+                  <label
+                    htmlFor="resume-upload"
+                    className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                  >
+                    <UploadIcon />
+                    Replace Resume
+                  </label>
+
+                </div>
+
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-7 text-center">
+
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                  <UploadIcon />
+                </div>
+
+                <h4 className="mt-4 text-base font-bold text-slate-900">
+                  Upload your resume
+                </h4>
+
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
+                  Upload your latest resume in PDF format.
+                  You only need to upload it once. The same resume
+                  will be used when you apply for jobs and internships.
+                </p>
+
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+
+              <input
+                id="resume-upload"
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleResumeFileChange}
+                className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 sm:flex-1"
+              />
+
+              <button
+                type="button"
+                onClick={handleResumeUpload}
+                disabled={
+                  !resumeFile || uploadingResume
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <UploadIcon />
+
+                {uploadingResume
+                  ? "Uploading..."
+                  : resume
+                    ? "Update Resume"
+                    : "Upload Resume"}
+              </button>
+
+            </div>
+
+            {resumeFile && (
+              <p className="mt-3 text-sm text-slate-600">
+                Selected file:{" "}
+                <span className="font-semibold">
+                  {resumeFile.name}
+                </span>
+              </p>
+            )}
+
+            {resumeMessage && (
+              <div
+                className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+                role="status"
+              >
+                {resumeMessage}
+              </div>
+            )}
+
+            {resumeError && (
+              <div
+                className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                role="alert"
+              >
+                {resumeError}
+              </div>
+            )}
+
+            <p className="mt-4 text-xs text-slate-400">
+              Accepted format: PDF only.
+            </p>
+
+          </div>
+
+        </section>
+
+        {/* Quick Actions */}
+        <section className="mt-10">
+
+          <div>
+            <h3 className="text-xl font-bold text-slate-900">
+              Quick Actions
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Manage your job search from one place.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-3">
+
+            {/* Find Jobs */}
+            <button
+              onClick={() =>
+                navigate("/student/jobs")
+              }
+              className="group rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-lg"
+            >
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white">
+                  <SearchIcon />
+                </div>
+
+                <ArrowRightIcon />
+
+              </div>
+
+              <h4 className="mt-5 font-semibold text-slate-900">
+                Find Jobs
+              </h4>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Search jobs and internships based on your
+                skills and interests.
+              </p>
+
+            </button>
+
+            {/* Applications */}
+            <button
+              onClick={() =>
+                navigate("/student/applications")
+              }
+              className="group rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-lg"
+            >
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600 transition group-hover:bg-violet-600 group-hover:text-white">
+                  <FileIcon />
+                </div>
+
+                <ArrowRightIcon />
+
+              </div>
+
+              <h4 className="mt-5 font-semibold text-slate-900">
+                My Applications
+              </h4>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Track your applications and check their
+                current status.
+              </p>
+
+            </button>
+
+            {/* Saved Jobs */}
+            <button
+              onClick={() =>
+                navigate("/student/saved-jobs")
+              }
+              className="group rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-purple-200 hover:shadow-lg"
+            >
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition group-hover:bg-purple-600 group-hover:text-white">
+                  <BookmarkIcon />
+                </div>
+
+                <ArrowRightIcon />
+
+              </div>
+
+              <h4 className="mt-5 font-semibold text-slate-900">
+                Saved Jobs
+              </h4>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Quickly access the opportunities you saved
+                for later.
+              </p>
+
+            </button>
+
+          </div>
+
+        </section>
+
+        {/* Profile Section */}
+        <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-xl font-bold text-white">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+
+              <div>
+
+                <h3 className="font-semibold text-slate-900">
+                  {user?.name}
+                </h3>
+
+                <p className="text-sm text-slate-500">
+                  {user?.email}
+                </p>
+
+              </div>
+
+            </div>
+
+            <button
+              onClick={() =>
+                navigate("/student/profile")
+              }
+              className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            >
+              Complete Profile
+            </button>
+
+          </div>
+
+        </section>
+
+      </main>
+    </div>
+  );
+}
