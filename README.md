@@ -132,10 +132,6 @@ Frontend runs locally at:
 
 Never commit database passwords, JWT secrets, email credentials, or environment files containing secrets.
 
-## 📸 Screenshots
-
-_Add screenshots of the Login, Student Dashboard, Recruiter Dashboard, and Admin Dashboard here._
-
 ## 🌐 Deployment
 
 Deployment configuration and live application links will be added after cloud deployment.
