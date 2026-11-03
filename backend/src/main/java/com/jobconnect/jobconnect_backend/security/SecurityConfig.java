@@ -1,7 +1,7 @@
 package com.jobconnect.jobconnect_backend.security;
 
 import java.util.List;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,7 +23,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
+        @Value("${jobconnect.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter) {
 
@@ -50,8 +51,9 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+               configuration.setAllowedOrigins(
+                List.of(frontendUrl, "http://localhost:5173")
+        );
         );
 
         configuration.setAllowedMethods(

@@ -1,6 +1,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { API_URL } from "../../services/api";
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
@@ -38,8 +39,8 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/auth/reset-password",
+            const response = await fetch(
+        `${API_URL}/api/auth/reset-password`,
         {
           method: "POST",
           headers: {

@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_URL } from "../../services/api";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -31,8 +32,8 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/auth/direct-reset-password",
+            const response = await fetch(
+        `${API_URL}/api/auth/direct-reset-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
